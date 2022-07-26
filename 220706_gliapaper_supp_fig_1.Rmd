@@ -44,8 +44,7 @@ L2A4.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ pap
 L2A4 <- CreateSeuratObject(counts = L2A4.data, project = "replicates", min.cells = 3, min.features = 50)
 
 ```
-
-# Merge data into new object and cluster for all celltypes 12/14/16
+# Merge data cross sequencing lanes
 
 ```{r}
 
@@ -131,19 +130,24 @@ DimPlot(object = lanes_combined_clus1, reduction = 'umap', label = FALSE, group.
 ```{r}
 
 #The correlation is calculated by the # of cells in each corresponding cluster
+
 #Subset merged, clustered Seurat object
+
 lane1_clusters=subset(lanes_combined_clus1, dataset=='Lane_1')
 lane2_clusters=subset(lanes_combined_clus1, dataset=='Lane_2')
+
 #Obtain the # of cells in each cluster
+
 lane1_clusters_table=data.frame(table(lane1_clusters@meta.data$seurat_clusters))
 lane2_clusters_table=data.frame(table(lane2_clusters@meta.data$seurat_clusters))
+
 #calculate the correlation between two subset
+
 cor(lane1_clusters_table$Freq, lane2_clusters_table$Freq)
 ```
 
 #Try again to compare tech reps instead of lanes
 
-# Merge data into new object and cluster for all celltypes 12/14/16
 
 ```{r}
 
