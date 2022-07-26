@@ -1,0 +1,88 @@
+
+
+##### 10% mito cutoff for sarah_inc_PCs_clusters3_subv3
+```{r}
+embryo_neuronsglia_10percent_jun16 <- sarah_inc_PCs_clusters3_sub_v3
+```
+
+```{r mito, fig.height=7, fig.width=13}
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+embryo_neuronsglia_10percent_jun16[["percent.mt"]] <- PercentageFeatureSet(object = embryo_neuronsglia_10percent_jun16, pattern = "mt:") #for drosophila use mt: to designate mitochondiral gene?
+```
+
+```{r qc2, fig.height=7, fig.width=13}
+
+#Visualize QC metrics as a violin plot
+VlnPlot(object = embryo_neuronsglia_10percent_jun16, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# FeatureScatter is typically used to visualize feature-feature relationships, but can be used for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
+
+embryo_neuronsglia_10percent_jun16_plot1 <- FeatureScatter(object = embryo_neuronsglia_10percent_jun16, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+embryo_neuronsglia_10percent_jun16_plot2 <- FeatureScatter(object = embryo_neuronsglia_10percent_jun16, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(embryo_neuronsglia_10percent_jun16_plot1,embryo_neuronsglia_10percent_jun16_plot2))
+
+embryo_neuronsglia_10percent_jun16 <- subset(x = embryo_neuronsglia_10percent_jun16, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 10)
+```
+
+```{r normalize}
+embryo_neuronsglia_10percent_jun16 <- NormalizeData(object = embryo_neuronsglia_10percent_jun16, normalization.method = "LogNormalize", scale.factor = 1e4)
+
+```
+
+```{r var_features, fig.height=5, fig.width=11}
+embryo_neuronsglia_10percent_jun16 <- FindVariableFeatures(object = embryo_neuronsglia_10percent_jun16, selection.method = 'vst', nfeatures = 13000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(x = VariableFeatures(object = embryo_neuronsglia_10percent_jun16), 20)
+
+# plot variable features with and without labels
+embryo_neuronsglia_10percent_jun16_plot3 <- VariableFeaturePlot(object = embryo_neuronsglia_10percent_jun16)
+embryo_neuronsglia_10percent_jun16_plot4 <- LabelPoints(plot = embryo_neuronsglia_10percent_jun16_plot3, points = top10, repel = TRUE)
+CombinePlots(plots = list(embryo_neuronsglia_10percent_jun16_plot3, embryo_neuronsglia_10percent_jun16_plot4))
+
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+#changed to only scale variable genes for input to PC based on Seurat documentation, this is different than scaling all genes as we were doing before#
+all.genes <- rownames(x = embryo_neuronsglia_10percent_jun16)
+embryo_neuronsglia_10percent_jun16 <- ScaleData(object = embryo_neuronsglia_10percent_jun16)
+```
+
+```{r regressvarmt, fig.height=7, fig.width=11, results='hide',eval = FALSE}
+embryo_neuronsglia_10percent_jun16 <- ScaleData(object = embryo_neuronsglia_10percent_jun16, vars.to.regress = 'percent.mt')
+```
+
+```{r pca,results='hide'}
+embryo_neuronsglia_10percent_jun16 <- RunPCA(object = embryo_neuronsglia_10percent_jun16, features = VariableFeatures(object = embryo_neuronsglia_10percent_jun16))
+```
+
+```{r elbow_plot, fig.height=6, fig.width=10}
+ElbowPlot(object = embryo_neuronsglia_10percent_jun16, ndims = 100, reduction = "pca")
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+#attempt 1 to get more diversity, dims 1:50 and reso 10#
+embryo_neuronsglia_10percent_jun16_clus1 <- FindNeighbors(object = embryo_neuronsglia_10percent_jun16, dims = 1:50)
+embryo_neuronsglia_10percent_jun16_clus1 <- FindClusters(object = embryo_neuronsglia_10percent_jun16_clus1, resolution = 2.0)
+
+# Look at cluster IDs of the first 5 cells
+head(x = Idents(object = embryo_neuronsglia_10percent_jun16_clus1), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+#dims 1:50 and reso 10#
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages = "umap-learn")
+embryo_neuronsglia_10percent_jun16_clus1 <- RunUMAP(object = embryo_neuronsglia_10percent_jun16_clus1, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
+#dims 1:50 and reso 10#
+DimPlot(object = embryo_neuronsglia_10percent_jun16_clus1, reduction = 'umap', label = TRUE)
+```
+
+```{r}
+#export glia 5% to .rds
+
+saveRDS(embryo_neuronsglia_10percent_jun16_clus1, file = "embryo_neuronsglia_10percent_jun16.rds")
+```
