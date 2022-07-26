@@ -1,0 +1,237 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r init}
+
+library(dplyr)
+library(Seurat)
+
+
+#Lane1Astro1
+L1A1.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane1Astro1_filtered_feature_bc_matrix")
+L1A1 <- CreateSeuratObject(counts = L1A1.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane1Astro2
+L1A2.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane1Astro2_filtered_feature_bc_matrix")
+L1A2 <- CreateSeuratObject(counts = L1A2.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane1Astro3
+L1A3.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane1Astro3_filtered_feature_bc_matrix")
+L1A3 <- CreateSeuratObject(counts = L1A3.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane1Astro4
+L1A4.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane1Astro4_filtered_feature_bc_matrix")
+L1A4 <- CreateSeuratObject(counts = L1A4.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane2Astro1
+L2A1.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane2Astro1_filtered_feature_bc_matrix")
+L2A1 <- CreateSeuratObject(counts = L2A1.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane2Astro2
+L2A2.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane2Astro2_filtered_feature_bc_matrix")
+L2A2 <- CreateSeuratObject(counts = L2A2.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane2Astro3
+L2A3.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane2Astro3_filtered_feature_bc_matrix")
+L2A3 <- CreateSeuratObject(counts = L2A3.data, project = "replicates", min.cells = 3, min.features = 50)
+
+#Lane2Astro4
+L2A4.data <- Read10X(data.dir = "/Users/aseroka/Desktop/220706\ sarah\ glia\ paper/CellRanger\ outputs/Lane2Astro4_filtered_feature_bc_matrix")
+L2A4 <- CreateSeuratObject(counts = L2A4.data, project = "replicates", min.cells = 3, min.features = 50)
+
+```
+
+# Merge data into new object and cluster for all celltypes 12/14/16
+
+```{r}
+
+L1A1$dataset <- 'L1_A1'
+L1A2$dataset <- 'L1_A2'
+L1A3$dataset <- 'L1_A3'
+L1A4$dataset <- 'L1_A4'
+L2A1$dataset <- 'L2_A1'
+L2A2$dataset <- 'L2_A2'
+L2A3$dataset <- 'L2_A3'
+L2A4$dataset <- 'L2_A4'
+
+Lane1 <- merge(x = L1A1, y = c(L1A2, L1A3, L1A4))
+Lane2 <- merge(x = L2A1, y = c(L2A2, L2A3, L2A4))
+
+Lane1$dataset <- 'Lane_1'
+Lane2$dataset <- 'Lane_2'
+
+lanes_combined <- merge(x = Lane1, y = Lane2)
+
+```
+
+```{r , fig.height=7, fig.width=13}
+lanes_combined[["percent.mt"]] <- PercentageFeatureSet(object = lanes_combined, pattern = "mt:") 
+```
+
+```{r , fig.height=7, fig.width=13}
+
+VlnPlot(object = lanes_combined, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+lanes_combined_plot1 <- FeatureScatter(object = lanes_combined, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+lanes_combined_plot2 <- FeatureScatter(object = lanes_combined, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(lanes_combined_plot1,lanes_combined_plot2))
+
+lanes_combined <- subset(x = lanes_combined, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 20)
+```
+
+```{r}
+lanes_combined <- NormalizeData(object = lanes_combined, normalization.method = "LogNormalize", scale.factor = 1e4)
+```
+
+
+```{r var_features, fig.height=5, fig.width=11}
+lanes_combined <- FindVariableFeatures(object = lanes_combined, selection.method = 'vst', nfeatures = 10000)
+
+top10 <- head(x = VariableFeatures(object = lanes_combined), 20)
+
+lanes_combined_plot3 <- VariableFeaturePlot(object = lanes_combined)
+lanes_combined_plot4 <- LabelPoints(plot = lanes_combined_plot3, points = top10, repel = TRUE)
+CombinePlots(plots = list(lanes_combined_plot3, lanes_combined_plot4))
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+lanes_combined <- ScaleData(object = lanes_combined)
+```
+
+```{r regressvarmt, fig.height=7, fig.width=11, results='hide',eval = FALSE}
+lanes_combined <- ScaleData(object = lanes_combined, vars.to.regress = 'percent.mt')
+```
+
+```{r pca,results='hide'}
+lanes_combined <- RunPCA(object = lanes_combined, features = VariableFeatures(object = lanes_combined))
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+lanes_combined_clus1 <- FindNeighbors(object = lanes_combined, dims = 1:50)
+lanes_combined_clus1 <- FindClusters(object = lanes_combined_clus1, resolution = 1.0)
+head(x = Idents(object = lanes_combined_clus1), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+lanes_combined_clus1 <- RunUMAP(object = lanes_combined_clus1, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+DimPlot(object = lanes_combined_clus1, reduction = 'umap', label = TRUE)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+DimPlot(object = lanes_combined_clus1, reduction = 'umap', label = FALSE, group.by = 'dataset')
+```
+
+```{r}
+
+#The correlation is calculated by the # of cells in each corresponding cluster
+#Subset merged, clustered Seurat object
+lane1_clusters=subset(lanes_combined_clus1, dataset=='Lane_1')
+lane2_clusters=subset(lanes_combined_clus1, dataset=='Lane_2')
+#Obtain the # of cells in each cluster
+lane1_clusters_table=data.frame(table(lane1_clusters@meta.data$seurat_clusters))
+lane2_clusters_table=data.frame(table(lane2_clusters@meta.data$seurat_clusters))
+#calculate the correlation between two subset
+cor(lane1_clusters_table$Freq, lane2_clusters_table$Freq)
+```
+
+#Try again to compare tech reps instead of lanes
+
+# Merge data into new object and cluster for all celltypes 12/14/16
+
+```{r}
+
+
+A1 <- merge(x = L1A1, y = L2A1)
+A2 <- merge(x = L1A2, y = L2A2)
+A3 <- merge(x = L1A3, y = L2A3)
+A4 <- merge(x = L1A4, y = L2A4)
+
+A1$dataset <- 'A_1'
+A2$dataset <- 'A_2'
+A3$dataset <- 'A_3'
+A4$dataset <- 'A_4'
+
+tech_test <- merge(x = A1, y = c(A2, A3, A4))
+
+```
+
+```{r , fig.height=7, fig.width=13}
+tech_test[["percent.mt"]] <- PercentageFeatureSet(object = tech_test, pattern = "mt:") 
+```
+
+```{r , fig.height=7, fig.width=13}
+
+VlnPlot(object = tech_test, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+tech_test_plot1 <- FeatureScatter(object = tech_test, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+tech_test_plot2 <- FeatureScatter(object = tech_test, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(tech_test_plot1,tech_test_plot2))
+
+tech_test <- subset(x = tech_test, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 20)
+```
+
+```{r}
+tech_test <- NormalizeData(object = tech_test, normalization.method = "LogNormalize", scale.factor = 1e4)
+```
+
+
+```{r var_features, fig.height=5, fig.width=11}
+tech_test <- FindVariableFeatures(object = tech_test, selection.method = 'vst', nfeatures = 10000)
+
+top10 <- head(x = VariableFeatures(object = tech_test), 20)
+
+tech_test_plot3 <- VariableFeaturePlot(object = tech_test)
+tech_test_plot4 <- LabelPoints(plot = tech_test_plot3, points = top10, repel = TRUE)
+CombinePlots(plots = list(tech_test_plot3, tech_test_plot4))
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+tech_test <- ScaleData(object = tech_test)
+```
+
+```{r regressvarmt, fig.height=7, fig.width=11, results='hide',eval = FALSE}
+tech_test <- ScaleData(object = tech_test, vars.to.regress = 'percent.mt')
+```
+
+```{r pca,results='hide'}
+tech_test <- RunPCA(object = tech_test, features = VariableFeatures(object = tech_test))
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+tech_test_clus1 <- FindNeighbors(object = tech_test, dims = 1:50)
+tech_test_clus1 <- FindClusters(object = tech_test_clus1, resolution = 1.0)
+head(x = Idents(object = tech_test_clus1), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+tech_test_clus1 <- RunUMAP(object = tech_test_clus1, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+DimPlot(object = tech_test_clus1, reduction = 'umap', label = TRUE)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+DimPlot(object = tech_test_clus1, reduction = 'umap', label = FALSE, group.by = 'dataset')
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+DimPlot(object = tech_test_clus1, reduction = 'umap', label = FALSE, split.by = 'dataset')
+```
+
+```{r}
+FeaturePlot(object = tech_test_clus1, features = c("elav", "repo", "Gat", "alrm"), reduction = 'umap')
+```
+```{r}
+idents_by_replicate <- FeaturePlot(object = tech_test_clus1, features = c("elav", "repo"), reduction = 'umap', split.by = 'dataset')
+
+
+```
+
