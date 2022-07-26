@@ -1,0 +1,184 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+#Testing 5% and 10% mito cutoff for glia dataset:
+
+```{r}
+#setting up new objects to filter for mito %
+glia_5percent <- sarah_inc_PCs_clusters3_sub_v3_glia
+
+glia_10percent <- sarah_inc_PCs_clusters3_sub_v3_glia
+```
+
+####
+5%
+
+```{r mito, fig.height=7, fig.width=13}
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+glia_5percent[["percent.mt"]] <- PercentageFeatureSet(object = glia_5percent, pattern = "mt:") #for drosophila use mt: to designate mitochondiral gene?
+```
+
+```{r qc2, fig.height=7, fig.width=13}
+
+#Visualize QC metrics as a violin plot
+VlnPlot(object = glia_5percent, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# FeatureScatter is typically used to visualize feature-feature relationships, but can be used for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
+
+glia_5percent_plot1 <- FeatureScatter(object = glia_5percent, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+glia_5percent_plot2 <- FeatureScatter(object = glia_5percent, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(glia_5percent_plot1,glia_5percent_plot2))
+
+glia_5percent <- subset(x = glia_5percent, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 5)
+```
+
+```{r normalize}
+glia_5percent <- NormalizeData(object = glia_5percent, normalization.method = "LogNormalize", scale.factor = 1e4)
+
+```
+
+```{r var_features, fig.height=5, fig.width=11}
+glia_5percent <- FindVariableFeatures(object = glia_5percent, selection.method = 'vst', nfeatures = 13000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(x = VariableFeatures(object = glia_5percent), 20)
+
+# plot variable features with and without labels
+glia_5percent_plot3 <- VariableFeaturePlot(object = glia_5percent)
+glia_5percent_plot4 <- LabelPoints(plot = glia_5percent_plot3, points = top10, repel = TRUE)
+CombinePlots(plots = list(glia_5percent_plot3, glia_5percent_plot4))
+
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+#changed to only scale variable genes for input to PC based on Seurat documentation, this is different than scaling all genes as we were doing before#
+all.genes <- rownames(x = glia_5percent)
+glia_5percent <- ScaleData(object = glia_5percent)
+```
+
+```{r regressvarmt, fig.height=7, fig.width=11, results='hide',eval = FALSE}
+glia_5percent <- ScaleData(object = glia_5percent, vars.to.regress = 'percent.mt')
+```
+
+```{r pca,results='hide'}
+glia_5percent <- RunPCA(object = glia_5percent, features = VariableFeatures(object = glia_5percent))
+```
+
+```{r elbow_plot, fig.height=6, fig.width=10}
+ElbowPlot(object = glia_5percent, ndims = 100, reduction = "pca")
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+#attempt 1 to get more diversity, dims 1:50 and reso 10#
+glia_5percent_clus1 <- FindNeighbors(object = glia_5percent, dims = 1:50)
+glia_5percent_clus1 <- FindClusters(object = glia_5percent_clus1, resolution = 2.0)
+
+# Look at cluster IDs of the first 5 cells
+head(x = Idents(object = glia_5percent_clus1), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+#dims 1:50 and reso 10#
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages = "umap-learn")
+glia_5percent_clus1 <- RunUMAP(object = glia_5percent_clus1, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
+#dims 1:50 and reso 10#
+DimPlot(object = glia_5percent_clus1, reduction = 'umap', label = TRUE)
+```
+
+```{r}
+#export glia 5% to .rds
+
+saveRDS(glia_5percent_clus1, file = "embryo_glia_5mito_050522.rds")
+```
+
+#### 
+10% mito
+
+```{r mito, fig.height=7, fig.width=13}
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+glia_10percent[["percent.mt"]] <- PercentageFeatureSet(object = glia_10percent, pattern = "mt:") #for drosophila use mt: to designate mitochondiral gene?
+```
+
+```{r qc2, fig.height=7, fig.width=13}
+
+#Visualize QC metrics as a violin plot
+VlnPlot(object = glia_10percent, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+# FeatureScatter is typically used to visualize feature-feature relationships, but can be used for anything calculated by the object, i.e. columns in object metadata, PC scores etc.
+
+glia_10percent_plot1 <- FeatureScatter(object = glia_10percent, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+glia_10percent_plot2 <- FeatureScatter(object = glia_10percent, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(glia_10percent_plot1,glia_10percent_plot2))
+
+glia_10percent <- subset(x = glia_10percent, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 10)
+```
+
+```{r normalize}
+glia_10percent <- NormalizeData(object = glia_10percent, normalization.method = "LogNormalize", scale.factor = 1e4)
+
+```
+
+```{r var_features, fig.height=5, fig.width=11}
+glia_10percent <- FindVariableFeatures(object = glia_10percent, selection.method = 'vst', nfeatures = 13000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(x = VariableFeatures(object = glia_10percent), 20)
+
+# plot variable features with and without labels
+glia_10percent_plot3 <- VariableFeaturePlot(object = glia_10percent)
+glia_10percent_plot4 <- LabelPoints(plot = glia_10percent_plot3, points = top10, repel = TRUE)
+CombinePlots(plots = list(glia_10percent_plot3, glia_10percent_plot4))
+
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+#changed to only scale variable genes for input to PC based on Seurat documentation, this is different than scaling all genes as we were doing before#
+all.genes <- rownames(x = glia_10percent)
+glia_10percent <- ScaleData(object = glia_10percent)
+```
+
+```{r regressvarmt, fig.height=7, fig.width=11, results='hide',eval = FALSE}
+glia_10percent <- ScaleData(object = glia_10percent, vars.to.regress = 'percent.mt')
+```
+
+```{r pca,results='hide'}
+glia_10percent <- RunPCA(object = glia_10percent, features = VariableFeatures(object = glia_10percent))
+```
+
+```{r elbow_plot, fig.height=6, fig.width=10}
+ElbowPlot(object = glia_10percent, ndims = 100, reduction = "pca")
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+#attempt 1 to get more diversity, dims 1:50 and reso 10#
+glia_10percent_clus1 <- FindNeighbors(object = glia_10percent, dims = 1:50)
+glia_10percent_clus1 <- FindClusters(object = glia_10percent_clus1, resolution = 2.0)
+
+# Look at cluster IDs of the first 5 cells
+head(x = Idents(object = glia_10percent_clus1), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+#dims 1:50 and reso 10#
+# If you haven't installed UMAP, you can do so via reticulate::py_install(packages = "umap-learn")
+glia_10percent_clus1 <- RunUMAP(object = glia_10percent_clus1, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
+#dims 1:50 and reso 10#
+DimPlot(object = glia_10percent_clus1, reduction = 'umap', label = TRUE)
+```
+
+```{r}
+
+
+saveRDS(glia_10percent_clus1, file = "embryo_glia_10mito_050522.rds")
+```
+

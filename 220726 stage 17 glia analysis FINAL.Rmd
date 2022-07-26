@@ -1,0 +1,205 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r init}
+library(dplyr)
+library(Seurat)
+
+sarah_inc_PCs.data <- Read10X(data.dir = "/Users/austinseroka/Dropbox/Sarah_aggr_trial1_filtered_feature_bc_matrix")
+
+sarah_inc_PCs <- CreateSeuratObject(counts = sarah_inc_PCs.data, project = "Sarah_inc_PCs", min.cells = 3, min.features = 50)
+sarah_inc_PCs
+
+```
+
+```{r mito, fig.height=7, fig.width=13}
+
+sarah_inc_PCs[["percent.mt"]] <- PercentageFeatureSet(object = sarah_inc_PCs, pattern = "mt:") 
+```
+
+```{r qc2, fig.height=7, fig.width=13}
+
+VlnPlot(object = sarah_inc_PCs, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+
+plot1 <- FeatureScatter(object = sarah_inc_PCs, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plot2 <- FeatureScatter(object = sarah_inc_PCs, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+CombinePlots(plots = list(plot1,plot2))
+
+sarah_inc_PCs <- subset(x = sarah_inc_PCs, subset = nFeature_RNA > 50 & nFeature_RNA < 3000 & percent.mt < 20)
+```
+
+```{r normalize}
+sarah_inc_PCs <- NormalizeData(object = sarah_inc_PCs, normalization.method = "LogNormalize", scale.factor = 1e4)
+
+```
+
+```{r var_features, fig.height=5, fig.width=11}
+sarah_inc_PCs <- FindVariableFeatures(object = sarah_inc_PCs, selection.method = 'vst', nfeatures = 10000)
+
+
+top10 <- head(x = VariableFeatures(object = sarah_inc_PCs), 20)
+
+
+plot1 <- VariableFeaturePlot(object = sarah_inc_PCs)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+CombinePlots(plots = list(plot1, plot2))
+
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+
+all.genes <- rownames(x = sarah_inc_PCs)
+sarah_inc_PCs <- ScaleData(object = sarah_inc_PCs)
+```
+
+```{r regressvarmt, fig.height=7, fig.width=11, results='hide',eval = FALSE}
+sarah_inc_PCs <- ScaleData(object = sarah_inc_PCs, vars.to.regress = 'percent.mt')
+```
+
+```{r pca,results='hide'}
+sarah_inc_PCs <- RunPCA(object = sarah_inc_PCs, features = VariableFeatures(object = sarah_inc_PCs))
+```
+
+```{r elbow_plot, fig.height=6, fig.width=10}
+ElbowPlot(object = sarah_inc_PCs, ndims = 100, reduction = "pca")
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+#attempt 1 to get more diversity, dims 1:50 and reso 10#
+sarah_inc_PCs_clusters3 <- FindNeighbors(object = sarah_inc_PCs, dims = 1:50)
+sarah_inc_PCs_clusters3 <- FindClusters(object = sarah_inc_PCs_clusters3, resolution = 10.0)
+
+# Look at cluster IDs of the first 5 cells
+head(x = Idents(object = sarah_inc_PCs_clusters3), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+#dims 1:50 and reso 10#
+
+sarah_inc_PCs_clusters3 <- RunUMAP(object = sarah_inc_PCs_clusters3, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
+#dims 1:50 and reso 10#
+DimPlot(object = sarah_inc_PCs_clusters3, reduction = 'umap', label = TRUE)
+```
+
+```{r cluster, fig.height=5, fig.width=7}
+
+#first, reduce resolution of clustering to make subdividing glia and neurons easier
+
+
+sarah_inc_PCs_clusters3_sub <- FindNeighbors(object = sarah_inc_PCs, dims = 1:50)
+sarah_inc_PCs_clusters3_sub <- FindClusters(object = sarah_inc_PCs_clusters3, resolution = 1.0)
+
+
+head(x = Idents(object = sarah_inc_PCs_clusters3), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+
+sarah_inc_PCs_clusters3_sub <- RunUMAP(object = sarah_inc_PCs_clusters3_sub, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+
+DimPlot(object = sarah_inc_PCs_clusters3_sub, reduction = 'umap', label = TRUE)
+```
+
+#SUBSETTING NEURONS AND GLIA
+
+```{r}
+#subsetting neurons + glia from clusters3_sub
+
+sample.0 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 18, do.clean = TRUE, do.scale = TRUE)
+sample.1 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 2, do.clean = TRUE, do.scale = TRUE)
+sample.2 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 0, do.clean = TRUE, do.scale = TRUE)
+sample.3 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 4, do.clean = TRUE, do.scale = TRUE)
+sample.4 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 24, do.clean = TRUE, do.scale = TRUE)
+sample.5 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 26, do.clean = TRUE, do.scale = TRUE)
+sample.6 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 22, do.clean = TRUE, do.scale = TRUE)
+sample.7 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 16, do.clean = TRUE, do.scale = TRUE)
+sample.8 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 13, do.clean = TRUE, do.scale = TRUE)
+sample.9 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 14, do.clean = TRUE, do.scale = TRUE)
+sample.10 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 11, do.clean = TRUE, do.scale = TRUE)
+sample.11 <-SubsetData(sarah_inc_PCs_clusters3_sub, ident.use = 27, do.clean = TRUE, do.scale = TRUE)
+sarah_inc_PCs_clusters3_sub <- merge(x = sample.0, y = c(sample.1, sample.2, sample.3, sample.4, sample.5, sample.6, sample.7, sample.8, sample.9, sample.10, sample.11))
+```
+
+```{r normalize}
+#re-normalize new data set
+sarah_inc_PCs_clusters3_sub <- NormalizeData(object = sarah_inc_PCs_clusters3_sub, normalization.method = "LogNormalize", scale.factor = 1e4)
+```
+
+```{r var_features, fig.height=5, fig.width=11}
+sarah_inc_PCs_clusters3_sub <- FindVariableFeatures(object = sarah_inc_PCs_clusters3_sub,selection.method = 'vst', nfeatures = 13000)
+
+
+top10 <- head(x = VariableFeatures(object = sarah_inc_PCs_clusters3_sub), 20)
+
+
+plot3 <- VariableFeaturePlot(object = sarah_inc_PCs_clusters3_sub)
+plot4 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+CombinePlots(plots = list(plot3, plot4))
+```
+
+```{r regress, fig.height=7, fig.width=11, results='hide'}
+
+all.genes <- rownames(x = sarah_inc_PCs_clusters3_sub)
+sarah_inc_PCs_clusters3_sub <- ScaleData(object = sarah_inc_PCs_clusters3_sub)
+```
+
+```{r pca,results='hide'}
+sarah_inc_PCs_clusters3_sub <- RunPCA(object = sarah_inc_PCs_clusters3_sub, features = VariableFeatures(object = sarah_inc_PCs_clusters3_sub))
+```
+
+```{r elbow_plot, fig.height=6, fig.width=10}
+ElbowPlot(object = sarah_inc_PCs_clusters3_sub, ndims = 100, reduction = "pca")
+```
+
+
+```{r cluster, fig.height=5, fig.width=7}
+
+sarah_inc_PCs_clusters3_sub_v3 <- FindNeighbors(object = sarah_inc_PCs_clusters3_sub, dims = 1:50)
+sarah_inc_PCs_clusters3_sub_v3 <- FindClusters(object = sarah_inc_PCs_clusters3_sub_v3, resolution = 2.0)
+
+
+head(x = Idents(object = sarah_inc_PCs_clusters3_sub_v3), 5)
+```
+
+```{r tsne, fig.height=5, fig.width=7}
+
+sarah_inc_PCs_clusters3_sub_v3 <- RunUMAP(object = sarah_inc_PCs_clusters3_sub_v3, dims = 1:50)
+```
+
+```{r tsneplot, fig.height=5, fig.width=7}
+
+DimPlot(object = sarah_inc_PCs_clusters3_sub_v3, reduction = 'umap', label = TRUE)
+```
+
+#Subset only glial clusters
+
+```{r}
+
+sarah_inc_PCs_clusters3_sub_v3_glia <- subset(x = sarah_inc_PCs_clusters3_sub_v3, idents = c('23','26', '34', '38', '17', '41', '27', '32', '19', '18', '30'))
+
+
+```
+
+```{r tsneplot, fig.height=7, fig.width=10}
+# note that you can set `label = TRUE` or use the LabelClusters function to help label individual clusters
+
+DimPlot(object = sarah_inc_PCs_clusters3_sub_v3_glia, reduction = 'umap', label = TRUE)
+```
+
+
+
+
