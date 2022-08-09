@@ -41,7 +41,6 @@ CombinePlots(plots = list(embryo_neuronsglia_10percent_jun16_plot3, embryo_neuro
 ```
 
 ```{r regress, fig.height=7, fig.width=11, results='hide'}
-#changed to only scale variable genes for input to PC based on Seurat documentation, this is different than scaling all genes as we were doing before#
 all.genes <- rownames(x = embryo_neuronsglia_10percent_jun16)
 embryo_neuronsglia_10percent_jun16 <- ScaleData(object = embryo_neuronsglia_10percent_jun16)
 ```
